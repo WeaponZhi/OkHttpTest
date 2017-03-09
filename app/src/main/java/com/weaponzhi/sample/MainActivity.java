@@ -115,11 +115,15 @@ public class MainActivity extends AppCompatActivity {
                 .addFormDataPart("username", "hyman")
                 .addFormDataPart("mPhoto", "hyman.jpg", RequestBody.create(MediaType.parse("application/octet-stream"), file))
                 .build();
-
+        CountingRequestBody countingRequestBody = new CountingRequestBody(requestBody, new CountingRequestBody.Listener() {
+            @Override
+            public void onRequestProgress(long bytesWritten, long contentLength) {
+                LogUtil.e(bytesWritten+" / "+contentLength);
+            }
+        });
         //mime type
-
         Request.Builder builder = new Request.Builder();
-        Request request = builder.url(mBaseUrl + "uploadInfo").post(requestBody).build();
+        Request request = builder.url(mBaseUrl + "uploadInfo").post(countingRequestBody).build();
 
         executeRequest(request);
     }
@@ -146,13 +150,25 @@ public class MainActivity extends AppCompatActivity {
             public void onResponse(Call call, Response response) throws IOException {
                 LogUtil.e("onResponse:");
 
+                final long total = response.body().contentLength();
+                long sum = 0;
                 InputStream is = response.body().byteStream();
                 int len = 0;
                 File file = new File(Environment.getExternalStorageDirectory(), "hyman12306.jpg");
                 byte[] buf = new byte[128];
                 FileOutputStream fos = new FileOutputStream(file);
-                while ((len = is.read(buf)) != -1)
+                while ((len = is.read(buf)) != -1) {
                     fos.write(buf, 0, len);
+                    sum += len;
+                    LogUtil.e(sum + " / " + total);
+                    final long finalSum = sum;
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            mTvResult.setText(finalSum+" / "+total);
+                        }
+                    });
+                }
                 fos.flush();
                 fos.close();
                 is.close();
